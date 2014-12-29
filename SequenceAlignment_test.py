@@ -2,7 +2,7 @@
 
 from SequenceAlignment import DPChange, Manhattan, OutputLcs, LpDag
 from SequenceAlignment import GlobalAlignment, LocalAlignment, EditDistance
-from SequenceAlignment import FitAlignment, OverlapAlignment
+from SequenceAlignment import FitAlignment, OverlapAlignment, GapAlignment
 from SequenceAntiBiotics_test import ReadFile, WriteFile
 import itertools
 import sys
@@ -269,6 +269,34 @@ class OverlapAlignmentTest(unittest.TestCase):
         score, aligned_strings = overlap.GetAlignment()
         expect = ReadFile('dataset_248_7_output.txt')
         # WriteFile('test_output.txt', [str(score)] + aligned_strings)
+        self.assertEqual(int(expect[0]), score)
+        self.assertEqual(expect[1:], aligned_strings)
+
+
+class GapAlignmentTest(unittest.TestCase):
+
+    def testData1(self):
+        input = ReadFile('gap_alignment0_input.txt')
+        gap = GapAlignment(input)
+        score, aligned_strings = gap.GetAlignment()
+        expect = ReadFile('gap_alignment0_output.txt')
+        self.assertEqual(int(expect[0]), score)
+        self.assertEqual(expect[1:], aligned_strings)
+
+    def testData2(self):
+        input = ReadFile('affine_gap_input.txt')
+        gap = GapAlignment(input)
+        score, aligned_strings = gap.GetAlignment()
+        expect = ReadFile('affine_gap_output.txt')
+        self.assertEqual(int(expect[0]), score)
+        self.assertEqual(expect[1:], aligned_strings)
+
+    def testData3(self):
+        input = ReadFile('dataset_249_8.txt')
+        gap = GapAlignment(input)
+        score, aligned_strings = gap.GetAlignment()
+        # WriteFile('test_output.txt', [str(score)] + aligned_strings)
+        expect = ReadFile('dataset_249_8_output.txt')
         self.assertEqual(int(expect[0]), score)
         self.assertEqual(expect[1:], aligned_strings)
 
