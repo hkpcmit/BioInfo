@@ -36,6 +36,12 @@ class GreedySortTest(unittest.TestCase):
         expect = ReadFile('dataset_286_3_output.txt')
         self.assertEqual(expect, output)
 
+    def testData4(self):
+        input = self.ReadInput('greedy_sort2_input.txt')
+        gsort = GreedySort(input)
+        output = gsort.Sort()
+        self.assertEqual(24, len(output))
+
 
 class BreakPointsTest(unittest.TestCase):
 
@@ -54,6 +60,10 @@ class BreakPointsTest(unittest.TestCase):
     def testData3(self):
         input = self.ReadInput('dataset_287_4.txt')
         self.assertEqual(162, BreakPoints(input))
+
+    def testData4(self):
+        input = self.ReadInput('breakpoint2_input.txt')
+        self.assertEqual(16, BreakPoints(input))
 
 
 class Chrom2CycleTest(unittest.TestCase):
@@ -264,6 +274,11 @@ class SharedKmersTest(unittest.TestCase):
         # self.WriteOutput('test_output.txt', output)
         expect = self.ReadOutput('dataset_289_5_output.txt')
         self.assertEqual(set(expect), set(output))
+
+    def testData4(self):
+        k, string1, string2 = self.ReadInput('shared_kmers2_input.txt')
+        output = SharedKmers(k, string1, string2)
+        self.assertEqual(8, len(output))
 
 
 if __name__ == '__main__':
