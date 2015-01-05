@@ -1,15 +1,10 @@
+from ReverseComplement import ReverseComplement
+import collections
 import itertools
 
 
 class Error(Exception):
     """Base error class."""
-
-
-def xBreakPoints(permutation):
-    perm0_iter = itertools.chain.from_iterable([[0], (int(e) for e in permutation)])
-    perm1_iter = itertools.chain.from_iterable(
-        [(int(e) for e in permutation), [len(permutation) + 1]])
-    return sum(p0 + 1 != p1 for p0, p1 in itertools.izip(perm0_iter, perm1_iter))
 
 
 def BreakPoints(permutation):
@@ -48,21 +43,13 @@ def EdgeHelper(chrom):
     cycle = list(Chrom2Cycle(chrom))
     cycle = cycle[1:] + [cycle[0]]
     return [(cycle[i], cycle[i+1]) for i in xrange(0, len(cycle), 2)]
+        
 
-
-def xGraph2Genome(edges):
-    cycle, results = [], []
-    for node in itertools.chain.from_iterable(edges):
-        if not cycle:
-            cycle.append(node + 1 if node % 2 else node - 1)
-            cycle.append(node)
-            continue
-        if node != cycle[0]:
-            cycle.append(node)
-            continue
-        results.append(Cycle2Chrom(cycle))
-        cycle = []
-    return results
+def GetComplementPositions(kmer, complement_map):
+    return itertools.chain.from_iterable(
+        complement_map[k]
+        for k in (kmer, ReverseComplement(kmer))
+        if k in complement_map)
 
 
 def Graph2Genome(edges):
@@ -90,6 +77,21 @@ def Graph2Genome(edges):
             continue
         this_edge = (next_source, graph[next_source])
     return results
+    
+
+def KmerMap(string, k):    
+    kmap = collections.defaultdict(list)
+    for i in xrange(len(string)-k+1):
+        kmer = string[i:i+k]
+        kmap[kmer].append(i)
+    return kmap
+
+
+def SharedKmers(k, string1, string2):
+    complement_map = KmerMap(string2, k)
+    return [(i, j)
+            for i in xrange(len(string1)-k+1)
+            for j in GetComplementPositions(string1[i:i+k], complement_map)]
         
 
 class GreedySort(object):

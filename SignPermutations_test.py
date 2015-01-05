@@ -2,6 +2,7 @@
 
 from SignPermutations import BreakPoints, Chrom2Cycle, Cycle2Chrom, GreedySort
 from SignPermutations import ColorEdges, Graph2Genome, TwoBreakDistance, TwoBreakSort
+from SignPermutations import SharedKmers
 from SequenceAntiBiotics_test import ReadFile, WriteFile
 import re
 import unittest
@@ -228,7 +229,42 @@ class TwoBreakSortTest(unittest.TestCase):
         self.WriteOutput('test_output.txt', output)
         expect = self.ReadInput('dataset_288_5_1_output.txt')
         self.assertEqual(expect, output)
+
+
+class SharedKmersTest(unittest.TestCase):
         
+    def ReadInput(self, filename):
+        input = ReadFile(filename)
+        return int(input[0]), input[1], input[2]
+
+    def ReadOutput(self, filename):
+        lines = ReadFile(filename)
+        return [tuple(int(s) for s in re.findall(r'\((\d+), (\d+)\)', line)[0])
+                for line in lines]
+
+    def WriteOutput(self, filename, output):
+        output = ['({}, {})'.format(*tu) for tu in output]
+        WriteFile(filename, output)
+
+    def testData1(self):
+        k, string1, string2 = self.ReadInput('shared_kmers0_input.txt')
+        output = SharedKmers(k, string1, string2)
+        expect = self.ReadOutput('shared_kmers0_output.txt')
+        self.assertEqual(expect, output)
+
+    def testData2(self):
+        k, string1, string2 = self.ReadInput('shared_kmers1_input.txt')
+        output = SharedKmers(k, string1, string2)
+        expect = self.ReadOutput('shared_kmers1_output.txt')
+        self.assertEqual(set(expect), set(output))
+
+    def testData3(self):
+        k, string1, string2 = self.ReadInput('dataset_289_5.txt')
+        output = SharedKmers(k, string1, string2)
+        # self.WriteOutput('test_output.txt', output)
+        expect = self.ReadOutput('dataset_289_5_output.txt')
+        self.assertEqual(set(expect), set(output))
+
 
 if __name__ == '__main__':
     unittest.main()
