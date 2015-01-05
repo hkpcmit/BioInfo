@@ -1,8 +1,9 @@
-#!/opt/local/bin/pypy
+#!/usr/bin/python
 
 from SequenceAlignment import DPChange, Manhattan, OutputLcs, LpDag
 from SequenceAlignment import GlobalAlignment, LocalAlignment, EditDistance
 from SequenceAlignment import FitAlignment, OverlapAlignment, GapAlignment
+from SequenceAlignment import LinearSpace, LinearPeptides, MultiAlignment
 from SequenceAntiBiotics_test import ReadFile, WriteFile
 import itertools
 import sys
@@ -36,6 +37,13 @@ class DPChangeTest(unittest.TestCase):
         money, coins = self.ReadInput('dataset_243_9.txt')
         change = DPChange(coins)
         expect = 2105
+        self.assertEqual(expect, change.GetMinNumCoins(money))
+
+    def testData4(self):
+        money = 23
+        coins = [3, 2]
+        change = DPChange(coins)
+        expect = 8
         self.assertEqual(expect, change.GetMinNumCoins(money))
 
 
@@ -76,7 +84,7 @@ class ManhattanTest(unittest.TestCase):
     def testData3(self):
         n, m, down_map, right_map = self.ReadInput('dataset_261_9.txt')
         man = Manhattan(n, m, down_map, right_map)
-        expect = 84
+        expect = 62
         self.assertEqual(expect, man.GetLPLength())
 
 
@@ -100,6 +108,12 @@ class OutputLcsTest(unittest.TestCase):
         lcs = OutputLcs(strings)
         output = lcs.GetLcs()
         expect = ReadFile('dataset_245_5_output.txt')[0]
+        self.assertEqual(expect, output)
+
+    def testData4(self):
+        lcs = OutputLcs(['AGACTG', 'GTACGA'])
+        output = lcs.GetLcs()
+        expect = 'GACG'
         self.assertEqual(expect, output)
 
 
@@ -132,6 +146,13 @@ class LpDagTest(unittest.TestCase):
         self.assertEqual(int(expect[0]), output[0])
         self.assertEqual(expect[1], output[1])
 
+    def testData4(self):
+        source, dest, adj = self.ReadInput('lp_dag1_input.txt')
+        dag = LpDag(adj)
+        output = dag.GetLP(source, dest)
+        self.assertEqual(14, output[0])
+        self.assertEqual('a->d->e->g', output[1])
+
 
 class GlobalAlignmentTest(unittest.TestCase):
 
@@ -160,7 +181,25 @@ class GlobalAlignmentTest(unittest.TestCase):
         self.assertListEqual(expect[1:], aligned_strings)
 
     def testData4(self):
-        input = ReadFile('fit_alignment0_input.txt')
+        input = ReadFile('linear_space3_input.txt')
+        alignment = GlobalAlignment(input)
+        score, aligned_strings = alignment.GetAlignment()
+        # WriteFile('test_output.txt', [str(score)] + aligned_strings)
+        expect = ReadFile('linear_space3_output.txt')
+        self.assertEqual(int(expect[0]), score)
+        # self.assertListEqual(expect[1:], aligned_strings)
+
+    def testData5(self):
+        input = ReadFile('dataset_250_14.txt')
+        alignment = GlobalAlignment(input)
+        score, aligned_strings = alignment.GetAlignment()
+        # WriteFile('test_output.txt', [str(score)] + aligned_strings)
+        expect = ReadFile('dataset_250_14_output.txt')
+        self.assertEqual(int(expect[0]), score)
+        self.assertListEqual(expect[1:], aligned_strings)
+
+    def testData6(self):
+        input = ReadFile('linear_space0_input.txt')
         alignment = GlobalAlignment(input)
         score, aligned_strings = alignment.GetAlignment()
         print 'score: {}'.format(score)
@@ -297,6 +336,67 @@ class GapAlignmentTest(unittest.TestCase):
         score, aligned_strings = gap.GetAlignment()
         # WriteFile('test_output.txt', [str(score)] + aligned_strings)
         expect = ReadFile('dataset_249_8_output.txt')
+        self.assertEqual(int(expect[0]), score)
+        self.assertEqual(expect[1:], aligned_strings)
+
+
+class LinearSpaceTest(unittest.TestCase):
+
+    def testData1(self):
+        input = ReadFile('linear_space0_input.txt')
+        linear = LinearSpace(input)
+        edge = linear.GetMiddleEdge()
+        output = ' '.join(str(node) for node in edge)
+        expect = '(4, 3) (5, 4)'
+        self.assertEqual(expect, output)
+
+    def testData2(self):
+        input = ReadFile('linear_space1_input.txt')
+        linear = LinearSpace(input)
+        edge = linear.GetMiddleEdge()
+        output = ' '.join(str(node) for node in edge)
+        expect = '(512, 510) (513, 511)'
+        self.assertEqual(expect, output)
+
+    def testData3(self):
+        input = ReadFile('dataset_250_12.txt')
+        linear = LinearSpace(input)
+        edge = linear.GetMiddleEdge()
+        output = ' '.join(str(node) for node in edge)
+        expect = '(533, 515) (534, 516)'
+        self.assertEqual(expect, output)
+
+
+class LinearPeptidesTest(unittest.TestCase):
+
+    def testData1(self):
+        lp = LinearPeptides([2, 3])
+        self.assertEqual(1, lp.GetTotal(2))
+        self.assertEqual(1, lp.GetTotal(3))
+        self.assertEqual(1, lp.GetTotal(4))
+        self.assertEqual(2, lp.GetTotal(5))
+        self.assertEqual(2, lp.GetTotal(6))
+        self.assertEqual(3, lp.GetTotal(7))
+        self.assertEqual(4, lp.GetTotal(8))
+        self.assertEqual(5, lp.GetTotal(9))
+        self.assertEqual(265, lp.GetTotal(23))
+
+
+class MultiAlignmentTest(unittest.TestCase):
+
+    def testData1(self):
+        input = ReadFile('multi_alignment0_input.txt')
+        multi = MultiAlignment(input)
+        score, aligned_strings = multi.GetAlignment()
+        expect = ReadFile('multi_alignment0_output.txt')
+        self.assertEqual(int(expect[0]), score)
+        self.assertEqual(expect[1:], aligned_strings)
+
+    def testData2(self):
+        input = ReadFile('dataset_251_5.txt')
+        multi = MultiAlignment(input)
+        score, aligned_strings = multi.GetAlignment()
+        expect = ReadFile('dataset_251_5_output.txt')
         self.assertEqual(int(expect[0]), score)
         self.assertEqual(expect[1:], aligned_strings)
 

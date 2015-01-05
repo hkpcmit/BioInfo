@@ -3,6 +3,7 @@
 
 import collections
 import functools
+import itertools
 import sys
 
 
@@ -76,6 +77,7 @@ class Error(Exception):
 
 
 class DPChange(object):
+    INVALID = 10000
 
     def __init__(self, coins):
         self.coins = set(coins)
@@ -96,9 +98,35 @@ class DPChange(object):
             if i in self.num_coins:
                 continue
             self.num_coins[i] = min(
-                1+self.num_coins[i-coin]
+                1+self.num_coins.get(i-coin, self.INVALID)
                 for coin in self.coins if i > coin)
         return self.num_coins[money]
+
+
+class LinearPeptides(object):
+
+    def __init__(self, mass_list):
+        self.mass_list = mass_list
+        self.mass = {1: {m: 1 for m in mass_list}}
+        self.max_amount = 1
+
+    def GetTotal(self, mass):
+        return sum(self.GetMass(mass, i) for i in xrange(1, mass+1))
+            
+    def GetMass(self, mass, amount):
+        if self.mass.get(amount):
+            return self.mass[amount].get(mass, 0)
+        for i in xrange(self.max_amount+1, amount+1):
+            self.UpdateMassAmount(i)
+        self.max_amount = amount
+        return self.mass[amount].get(mass, 0)
+
+    def UpdateMassAmount(self, i):
+        mass_counter = collections.Counter()
+        for mass, amount in self.mass[i-1].iteritems():
+            for m in self.mass_list:
+                mass_counter[mass+m] += amount
+        self.mass[i] = mass_counter
 
 
 class LpDag(object):
@@ -156,9 +184,11 @@ class LpDag(object):
             if neighbors:
                 stack.extend(neighbors)
                 continue
-            orders.append(stack[-1])
-            visited.add(stack[-1])
+            node = stack[-1]
             stack = stack[:-1]
+            if node in visited: continue
+            orders.append(node)
+            visited.add(node)
         return list(reversed(orders))
 
 
@@ -571,7 +601,64 @@ class GapAlignment(object):
              (self.FROM_UPPER, i, j-1)),
             (self.middle.get(prev, 0) + self.OPEN_PENALTY,
              (self.FROM_MIDDLE, i, j-1)))
-    
+
+
+class LinearSpace(object):
+    INDEL = -5
+    INVALID = -100
+
+    def __init__(self, strings):
+        self.s1, self.s2 = strings
+        self.middle = (len(self.s2) - 1) / 2
+
+    def GetScores(self, s1, tail):
+        max_row = len(s1) - 1
+        this_scores, prev_scores = self.InitScores(s1, tail)
+        for col in xrange(-2, -1-len(tail), -1):
+            this_scores, prev_scores = prev_scores, this_scores
+            cc = tail[col]
+            for row in xrange(max_row, -1, -1):
+                this_scores[row] = prev_scores[row] + self.INDEL
+                # No need to compare other elements if this is the last row.
+                if row == max_row: continue
+                cr = s1[row]
+                this_scores[row] = max(
+                    this_scores[row],
+                    this_scores[row+1] + self.INDEL,
+                    prev_scores[row+1] + BLOSUM[cr][cc])
+        return this_scores
+
+    def GetMiddleEdge(self):
+        rev_s1 = list(reversed(self.s1))
+        rev_s2 = list(reversed(self.s2[:self.middle+1]))
+        left_scores = self.GetScores(rev_s1, rev_s2)
+        left_scores = list(reversed(left_scores))
+        right_scores = self.GetScores(self.s1, self.s2[self.middle+1:])
+        rows = self.GetMiddleEdgeRows(left_scores, right_scores)
+        return [(rows[0], self.middle), (rows[1], self.middle+1)]
+
+    def GetMiddleEdgeRows(self, left_scores, right_scores):
+        max_row0 = len(self.s1) - 1
+        max_row1 = max_row0
+        max_score = left_scores[max_row1] + right_scores[max_row1] + self.INDEL
+        cc = self.s2[self.middle]
+        for row in xrange(max_row0-1, -1, -1):
+            cr = self.s1[row]
+            score, row1 = max(
+                (left_scores[row] + right_scores[row] + self.INDEL, row),
+                (left_scores[row] + right_scores[row+1] + BLOSUM[cr][cc], row+1))
+            if score > max_score:
+                max_score = score
+                max_row0, max_row1 = row, row1
+        return max_row0, max_row1
+
+    def InitScores(self, s1, s2):
+        prev_scores = [0] * len(s1)
+        this_scores = [0] * len(s1)
+        this_scores[-1] = BLOSUM[s1[-1]][s2[-1]]
+        for row in xrange(len(s1)-2, -1, -1):
+            this_scores[row] += this_scores[row+1] + self.INDEL
+        return this_scores, prev_scores
 
 
 class Manhattan(object):
@@ -606,3 +693,76 @@ class Manhattan(object):
                             self.distances[i,j], i, j))
         return self.distances[self.n, self.m]
 
+
+class MultiAlignment(object):
+    INDEL1 = -1
+    INDEL2 = -10
+    INVALID = -100
+    KEY = '{},{},{}'
+
+    def __init__(self, strings):
+        self.s1, self.s2, self.s3 = strings
+        self.scores = {'0,0,0': 0}
+        self.backtrack = {}
+
+    def GetAlignedStrings(self):
+        ch1_list, ch2_list, ch3_list = [], [], []
+        this = self.KEY.format(len(self.s1), len(self.s2), len(self.s3))
+        while this != '0,0,0':
+            prev = self.backtrack[this]
+            for th, pr, cl, st in itertools.izip(
+                this.split(','),
+                prev.split(','),
+                [ch1_list, ch2_list, ch3_list],
+                [self.s1, self.s2, self.s3]):
+                ch = '-' if th == pr else st[int(pr)]
+                cl.append(ch)
+            this = prev
+        return [''.join(reversed(cl))
+                for cl in (ch1_list, ch2_list, ch3_list)]
+
+    def GetAlignment(self):
+        if len(self.scores) == 1:
+            self.GetScores()
+        key = self.KEY.format(len(self.s1), len(self.s2), len(self.s3))
+        return self.scores[key], self.GetAlignedStrings()
+
+    def GetScores(self):
+        for i in xrange(len(self.s1)+1):
+            for j in xrange(len(self.s2)+1):
+                for k in xrange(len(self.s3)+1):
+                    key = self.KEY.format(i, j, k)
+                    if key in self.scores: continue
+                    # Prefer no gap as highest priority.
+                    score = self.Score(i, j, k)
+                    prev6 = self.KEY.format(i-1, j-1, k-1)
+                    self.scores[key] = self.scores.get(prev6, self.INVALID) + score
+                    self.backtrack[key] = prev6
+                    # Next, consider 1 gap.
+                    prev3 = self.KEY.format(i-1, j-1, k)
+                    prev4 = self.KEY.format(i-1, j, k-1)
+                    prev5 = self.KEY.format(i, j-1, k-1)
+                    score, prev = max(
+                        (self.scores.get(prev3, self.INVALID), prev3),
+                        (self.scores.get(prev4, self.INVALID), prev4),
+                        (self.scores.get(prev5, self.INVALID), prev5))
+                    if score > self.scores[key]:
+                        self.scores[key] = score
+                        self.backtrack[key] = prev
+                    # Finally, consider 2 gaps.
+                    prev0 = self.KEY.format(i-1, j, k)
+                    prev1 = self.KEY.format(i, j-1, k)
+                    prev2 = self.KEY.format(i, j, k-1)
+                    score, prev = max(
+                        (self.scores.get(prev0, self.INVALID), prev0),
+                        (self.scores.get(prev1, self.INVALID), prev1),
+                        (self.scores.get(prev2, self.INVALID), prev2))
+                    if score > self.scores[key]:
+                        self.scores[key] = score
+                        self.backtrack[key] = prev
+                    
+    def Score(self, i, j, k):
+        if all([i, j, k]):
+            cset = set([self.s1[i-1], self.s2[j-1], self.s3[k-1]])
+            return int(len(cset) == 1)
+        return 0
